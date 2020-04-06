@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstring>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -108,11 +109,12 @@ class CheckedPtr3 {
 
 class TestPointee {
  public:
-  TestPointee() : value_(0) {}
+  TestPointee() : value_(0) { memset(data_, 0, 10000); }
   int value() const { return value_; }
   void Increment() { value_++; }
  private:
   int value_;
+  char data_[10000];
 };
 
 TestPointee* AllocateTestPointee() {
