@@ -217,7 +217,7 @@ void simple_free(void* ptr) {
 #define FALSE 0
 #define TRUE 1
 
-// My malloc adds three optimizations to the simple malloc and improves
+// My malloc adds a couple of optimizations to the simple malloc and improves
 // speed and memory utilization.
 //
 //   * When a free slot is added to the free list, concatenate the free slot
