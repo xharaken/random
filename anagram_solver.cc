@@ -58,18 +58,17 @@ bool compare_occurrence(
   return true;
 }
 
-bool compare(const std::string& str1, const std::string& str2) {
-  return str1.length() > str2.length();
+bool compare(const std::string& word1, const std::string& word2) {
+  return calculate_score(word1) > calculate_score(word2);
 }
 
 int main(int argc, char** argv) {
-  if (argc != 4) {
-    printf("usage: %s word_file dataset_file threshold\n", argv[0]);
+  if (argc != 3) {
+    printf("usage: %s word_file dataset_file\n", argv[0]);
     exit(1);
   }
   std::string word_file = argv[1];
   std::string dataset_file = argv[2];
-  int threshold = atoi(argv[3]);
 
   std::vector<std::string> words;
   read_words(word_file, words);
@@ -91,25 +90,13 @@ int main(int argc, char** argv) {
     // Build the character occurrence for a given data.
     std::vector<int> data_occurrence(ALPHABET_MAX);
     build_occurrence(dataset[i], data_occurrence);
-    std::string best_word;
-    int best_score = 0;
-    int matched = 0;
     for (size_t index = 0; index < words.size(); index++) {
       // Find a word that can be constructed as an anagram of the given data.
       if (compare_occurrence(data_occurrence, word_occurrences[index])) {
-        int score = calculate_score(words[index]);
-        if (score > best_score) {
-          best_score = score;
-          best_word = words[index];
-        }
-        matched++;
-        // For performance reasons, stop the search at some threshold.
-        if (matched >= threshold) {
-          break;
-        }
+        printf("%s\n", words[index].c_str());
+        break;
       }
     }
-    printf("%s\n", best_word.c_str());
   }
   return 0;
 }

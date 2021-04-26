@@ -1,6 +1,6 @@
 import sys
 
-# SCORE of each character:
+# SCORES of the characters:
 # ----------------------------------------
 # | 1 point  | a, e, h, i, n, o, r, s, t |
 # | 2 points | c, d, l, m, u             |
@@ -25,14 +25,14 @@ def calculate_score(word):
         score += SCORES[ord(character) - ord('a')]
     return score
 
-# Calculate the occurrences of 'a', 'b', ..., 'z' in a given word.
+# Calculate the occurrences of 'a', 'b', ... and 'z' in a given word.
 def build_occurrence(word):
     occurrence = [0] * 26 # 26 characters
     for character in list(word):
         occurrence[ord(character) - ord('a')] += 1
     return occurrence
 
-# Return true if for any character ('a', 'b', ..., 'z'), the occurrence in
+# Return true if for all characters ('a', 'b', ... and 'z'), the occurrence in
 # |data_occurrence| is equal to or lager than that in |word_occurrence|.
 # This means the |word| can be constructed as an anagram of the |data|.
 def compare_occurrence(data_occurrence, word_occurrence):
@@ -45,33 +45,23 @@ def main(word_file, dataset_file):
     words = read_words(word_file)
     # Sort the words in the reverse order of the word length so that we can
     # search longer words first.
-    words.sort(key=len, reverse=True)
+    words.sort(key=lambda word: calculate_score(word), reverse=True)
 
-    # Build the occurrences of the words.
+    # Build the character occurrences for the words.
     word_occurrences = []
     for word in words:
         word_occurrences.append(build_occurrence(word))
 
     dataset = read_words(dataset_file)
     for data in dataset:
-        # Build the occurrence of a given data.
+        # Build the character occurrence for a given data.
         data_occurrence = build_occurrence(data)
-        best_word = ""
-        best_score = 0
-        matched = 0
         for index in range(len(words)):
-            # Find words that can be constructed as an anagram of the given
+            # Find a word that can be constructed as an anagram of the given
             # data.
             if compare_occurrence(data_occurrence, word_occurrences[index]):
-                score = calculate_score(words[index])
-                if score > best_score:
-                    best_score = score
-                    best_word = words[index]
-                matched += 1
-                # For performance reasons, stop the search at some threshold.
-                if matched >= 10:
-                    break
-        print(best_word)
+                print(words[index])
+                break
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
