@@ -1,4 +1,6 @@
-def readNumber(line, index):
+#! /usr/bin/python3
+
+def read_number(line, index):
   number = 0
   while index < len(line) and line[index].isdigit():
     number = number * 10 + int(line[index])
@@ -14,22 +16,22 @@ def readNumber(line, index):
   return token, index
 
 
-def readMultiply(line, index):
+def read_multiply(line, index):
   token = {'type': 'MULTIPLY'}
   return token, index + 1
 
 
-def readDivide(line, index):
+def read_divide(line, index):
   token = {'type': 'DIVIDE'}
   return token, index + 1
 
 
-def readPlus(line, index):
+def read_plus(line, index):
   token = {'type': 'PLUS'}
   return token, index + 1
 
 
-def readMinus(line, index):
+def read_minus(line, index):
   token = {'type': 'MINUS'}
   return token, index + 1
 
@@ -39,15 +41,15 @@ def tokenize(line):
   index = 0
   while index < len(line):
     if line[index].isdigit():
-      (token, index) = readNumber(line, index)
+      (token, index) = read_number(line, index)
     elif line[index] == '+':
-      (token, index) = readPlus(line, index)
+      (token, index) = read_plus(line, index)
     elif line[index] == '-':
-      (token, index) = readMinus(line, index)
+      (token, index) = read_minus(line, index)
     elif line[index] == '*':
-      (token, index) = readMultiply(line, index)
+      (token, index) = read_multiply(line, index)
     elif line[index] == '/':
-      (token, index) = readDivide(line, index)
+      (token, index) = read_divide(line, index)
     else:
       print('Invalid character found: ' + line[index])
       exit(1)
@@ -94,16 +96,16 @@ def evaluate_plus_and_minus(tokens):
 
 def test(line):
   tokens = tokenize(line)
-  actualAnswer = evaluate(tokens)
-  expectedAnswer = eval(line)
-  if abs(actualAnswer - expectedAnswer) < 1e-8:
-    print("PASS! (%s = %f)" % (line, expectedAnswer))
+  actual_answer = evaluate(tokens)
+  expected_answer = eval(line)
+  if abs(actual_answer - expected_answer) < 1e-8:
+    print("PASS! (%s = %f)" % (line, expected_answer))
   else:
-    print("FAIL! (%s should be %f but was %f)" % (line, expectedAnswer, actualAnswer))
+    print("FAIL! (%s should be %f but was %f)" % (line, expected_answer, actual_answer))
 
 
 # Add more tests to this function :)
-def runTest():
+def run_test():
   print("==== Test started! ====")
   test("1")
   test("11")
@@ -126,7 +128,7 @@ def runTest():
   test("1.1*2.2-3.3*4.4-5.5/6.6+7.7/8.8")
   print("==== Test finished! ====\n")
 
-runTest()
+run_test()
 
 while True:
   print('> ', end="")
