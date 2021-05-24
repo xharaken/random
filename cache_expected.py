@@ -20,9 +20,8 @@ class Cache:
   # |url|: The accessed URL
   # |contents|: The contents of the URL
   def access_page(self, url, contents):
-    node = None
-    if url in self.url_to_node_:
-      node = self.url_to_node_[url]
+    node = self.url_to_node_.get(url)
+    if node is not None:
       assert(node["prev"])
       assert(node["next"])
       node["prev"]["next"] = node["next"]
