@@ -208,230 +208,80 @@ void simple_free(void* ptr) {
 //
 // Your job is to invent a smarter malloc algorithm here :)
 
-#if 1
-#define ASSERT(value) assert(value)
-#else
-#define ASSERT(value) do { } while (0)
-#endif
-
-#define FALSE 0
-#define TRUE 1
-
-// My malloc adds a couple of optimizations to the simple malloc and improves
-// speed and memory utilization.
+// Each object or free slot has metadata just prior to it:
 //
-//   * When a free slot is added to the free list, concatenate the free slot
-//     with the left-side slot if the left-side slot is a free slot.
-//   * When a free slot is added to the free list, concatenate the free slot
-//     with the right-side slot if the right-side slot is a free slot.
-//   * When my_malloc() iterates the free list, use best-fit instead of
-//     first-fit.
-//   * When my_malloc() iterates the free list, find empty memory pages
-//     and release the pages to the system.
+// ... | m | object | m | free slot | m | free slot | m | object | ...
 //
-// My malloc has the following memory layout.
+// where |m| indicates metadata. The metadata is needed for two purposes:
 //
-// A memory page (4 KB) is filled with slots.
-//
-//  | slot | slot | ... | slot |
-//  ^                          ^
-//  4 KB boundary              4 KB boundary
-//
-// There are three types of slots:
-//
-//   * Object slot
-//   * Free slot
-//   * Dead slot
-//
-// An object slot stores an allocated object and has the following layout:
-//
-//   | my_metadata_t | object payload | my_tail_metadata_t |
-//   ^
-//   my_tail_metadata->metadata
-//                  <------------------------------------->
-//                             my_metadata->size
-//
-// A free slot has the following layout. Free slots are linked with a doubly
-// linked list. my_free_metadata_t holds the prev and next pointers.
-//
-//   | my_metadata_t | my_free_metadata_t | free slot | my_tail_metadata_t |
-//   ^
-//   my_tail_metadata->metadata
-//                   <----------------------------------------------------->
-//                                     my_metadata->size
-//
-// A dead slot is a freed memory region whose size is not sufficient to create
-// a free slot. In other words, a dead slot is used for a freed memory region
-// whose size is smaller than |sizeof(my_metadata_t) +
-// sizeof(my_free_metadata_t) + sizeof(my_tail_metadata_t) |. The dead slot is
-// filled with 0's. The dead slot is not linked in a free list and never reused.
-//
-//   | 000...000 |
-//
-
-// |size| is the size of an object slot or a free slot. |size| does not
-// include the size of my_metadata_t.
+// 1) For an allocated object:
+//   *  |size| indicates the size of the object. |size| does not include
+//      the size of the metadata.
+//   *  |next| is unused and set to NULL.
+// 2) For a free slot:
+//   *  |size| indicates the size of the free slot. |size| does not include
+//      the size of the metadata.
+//   *  The free slots are linked with a singly linked list (we call this a
+//      free list). |next| points to the next free slot.
 typedef struct my_metadata_t {
-  int freed;  // FALSE => object slot, TRUE => free slot
-  int size;
+  size_t size;
+  struct my_metadata_t* next;
 } my_metadata_t;
 
-// my_free_metadata_t is added after my_metadata_t if the slot is a free slot.
-// This is used to create a doubly linked list of the free slots.
-typedef struct my_free_metadata_t {
-  struct my_metadata_t* prev;
-  struct my_metadata_t* next;
-} my_free_metadata_t;
-
-// my_tail_metadata_t is added to the tail of an object slot or a free slot.
-// |metadata| points to my_metadata_t at the beginning of the slot. This is used
-// to look up the object start address from the object end address.
-typedef struct my_tail_metadata_t {
-  struct my_metadata_t* metadata;
-} my_tail_metadata_t;
-
+// The global information of the my malloc.
+//   *  |free_head| points to the first free slot.
+//   *  |dummy| is a dummy free slot (only used to make the free list
+//      implementation simpler).
 typedef struct my_heap_t {
-  size_t page_size;  // The size of one memory page (set to 4 KB)
-  my_metadata_t* free_head;  // Free list head
-  my_metadata_t* free_tail;  // Free list tail
-  my_metadata_t dummy_metadata;
-  my_free_metadata_t dummy_free_metadata;
+  my_metadata_t* free_head;
+  my_metadata_t dummy;
 } my_heap_t;
 
-my_heap_t my_heap;
+// The size of the free list bin. The |i|th bin maintains a singly-linked list
+// of the free slots whose size is [2^(i+3), 2^(i+4)) bytes. The allocation
+// size is guaranteed to meet 8 <= |allocation size| <= 4000, so 0 <= |i| < 11.
+#define FREE_LIST_BIN_MAX 11
 
-void my_remove_from_free_list(my_metadata_t* metadata);
-void* my_malloc_internal(size_t size, int unmap_page);
+my_heap_t my_heap[FREE_LIST_BIN_MAX];
 
-// Check if a given slot is a free slot or an object slot.
-int is_free_slot(my_metadata_t* metadata) {
-  return metadata->freed;
-}
-
-// Check if a given slot is a dead slot or not.
-int is_dead_slot(void* ptr) {
-  return *(uint64_t*)(ptr) == 0;
-}
-
-// Check if a given pointer is at the memory page boundary.
-int is_mmap_boundary(my_metadata_t* metadata) {
-  return (uintptr_t)(metadata) % 4096 == 0;
-}
-
-// Return my_metadata_t of the right-side slot.
-my_metadata_t* get_next_metadata(my_metadata_t* metadata) {
-  return (my_metadata_t*)((char*)metadata +
-                          sizeof(my_metadata_t) + metadata->size);
-}
-
-// Return my_tail_metadata_t of the left-side slot.
-my_tail_metadata_t* get_prev_tail_metadata(my_metadata_t* metadata) {
-  return (my_tail_metadata_t*)((char*)metadata - sizeof(my_tail_metadata_t));
-}
-
-// Return my_free_metadata_t of the free slot.
-my_free_metadata_t* get_free_metadata(my_metadata_t* metadata) {
-  ASSERT(is_free_slot(metadata));
-  ASSERT(metadata == &my_heap.dummy_metadata ||
-         metadata->size >=
-         sizeof(my_free_metadata_t) + sizeof(my_tail_metadata_t));
-  return (my_free_metadata_t*)((char*)metadata + sizeof(my_metadata_t));
-}
-
-// Add a free slot to the free list.
-void my_add_to_free_list(my_metadata_t* metadata, size_t size) {
-  metadata->freed = TRUE;
-  metadata->size = size;
-  ASSERT(is_free_slot(metadata));
-
-  // If the right-side slot is also a free slot, concatenate the two free slots
-  // into one free slot.
-  //
-  //   | (left-side slot) | (this free slot) | (right-side slot) |
-  //                      ^                  ^
-  //                      metadata           next_metadata
-  my_metadata_t* next_metadata = get_next_metadata(metadata);
-  if (!is_mmap_boundary(next_metadata) &&
-      !is_dead_slot(next_metadata) &&
-      is_free_slot(next_metadata)) {
-    metadata->size = metadata->size +
-                     sizeof(my_metadata_t) + next_metadata->size;
-    // Remove the right-side free slot.
-    my_remove_from_free_list(next_metadata);
+// Return the bin index.
+int get_bin(size_t size) {
+  int count = 0;
+  while (size) {
+    size /= 2;
+    count++;
   }
+  int bin = count - 4;
+  assert(0 <= bin);
+  assert(bin < FREE_LIST_BIN_MAX);
+  return bin;
+}
 
-  // If the left-side slot is also a free slot, concatenate the two free slots.
-  //
-  //   | (left-side slot) | (this free slot) | (right-side slot) |
-  //   ^                  ^
-  //   prev_metadata      metadata
-  if (!is_mmap_boundary(metadata)) {
-    my_tail_metadata_t* prev_tail_metadata = get_prev_tail_metadata(metadata);
-    if (!is_dead_slot(prev_tail_metadata)) {
-      my_metadata_t* prev_metadata = prev_tail_metadata->metadata;
-      ASSERT(prev_metadata);
-      if (is_free_slot(prev_metadata)) {
-        // Remove the left-side slot.
-        my_remove_from_free_list(prev_metadata);
-        size_t new_size =
-            metadata->size + sizeof(my_metadata_t) + prev_metadata->size;
-        metadata = prev_metadata;
-        metadata->size = new_size;
-      }
-    }
-  }
-
-  // If there is no sufficient size to create a free slot, create a dead slot.
-  if (metadata->size < sizeof(my_free_metadata_t) + sizeof(my_tail_metadata_t)) {
-    // Fill 0's.
-    memset(metadata, 0, metadata->size + sizeof(my_metadata_t));
-    return;
-  }
-
-  //
-  // | my_metadata_t | my_free_metadata_t | free slot | my_tail_metadata_t |
-  // ^               ^                                ^
-  // metadata        free_metadata                    tail_metadata
-  //
-  my_tail_metadata_t* tail_metadata =
-      get_prev_tail_metadata(get_next_metadata(metadata));
-  tail_metadata->metadata = metadata;
-
-  // Add the free slot to the free list head.
-  my_free_metadata_t* free_metadata = get_free_metadata(metadata);
-  get_free_metadata(my_heap.free_head)->prev = metadata;
-  free_metadata->prev = NULL;
-  free_metadata->next = my_heap.free_head;
-  my_heap.free_head = metadata;
+// Add a free slot to the beginning of the free list.
+void my_add_to_free_list(my_metadata_t* metadata, int bin) {
+  assert(!metadata->next);
+  metadata->next = my_heap[bin].free_head;
+  my_heap[bin].free_head = metadata;
 }
 
 // Remove a free slot from the free list.
-void my_remove_from_free_list(my_metadata_t* metadata) {
-  ASSERT(is_free_slot(metadata));
-  my_free_metadata_t* free_metadata = get_free_metadata(metadata);
-  if (free_metadata->prev) {
-    get_free_metadata(free_metadata->prev)->next = free_metadata->next;
+void my_remove_from_free_list(my_metadata_t* metadata,
+                              my_metadata_t* prev, int bin) {
+  if (prev) {
+    prev->next = metadata->next;
   } else {
-    ASSERT(free_metadata->next);
-    my_heap.free_head = free_metadata->next;
+    my_heap[bin].free_head = metadata->next;
   }
-  if (free_metadata->next) {
-    get_free_metadata(free_metadata->next)->prev = free_metadata->prev;
-  } else {
-    ASSERT(free_metadata->prev);
-    my_heap.free_tail = free_metadata->prev;
-  }
+  metadata->next = NULL;
 }
 
 // This is called only once at the beginning of each challenge.
 void my_initialize() {
-  my_heap.page_size = 4096;
-  my_heap.free_head = &my_heap.dummy_metadata;
-  my_heap.free_tail = &my_heap.dummy_metadata;
-  my_heap.dummy_metadata.freed = TRUE;
-  my_heap.dummy_metadata.size = 0;
-  my_heap.dummy_free_metadata.prev = NULL;
-  my_heap.dummy_free_metadata.next = NULL;
+  for (int bin = 0; bin < FREE_LIST_BIN_MAX; bin++) {
+    my_heap[bin].free_head = &my_heap[bin].dummy;
+    my_heap[bin].dummy.size = 0;
+    my_heap[bin].dummy.next = NULL;
+  }
 }
 
 // This is called every time an object is allocated. |size| is guaranteed
@@ -439,85 +289,74 @@ void my_initialize() {
 // allowed to use any library functions other than mmap_from_system /
 // munmap_to_system.
 void* my_malloc(size_t size) {
-  return my_malloc_internal(size, TRUE);
-}
-
-// |unmap_empty_page| is set to FALSE to suspend the logic to unmap empty
-// memory pages to the system. This is needed to avoid an inifite recursion.
-void* my_malloc_internal(size_t size, int unmap_empty_page) {
-  ASSERT(size % 8 == 0);
-  // Add a space to store my_tail_metadata_t.
-  size += sizeof(my_tail_metadata_t);
-
+  int bin = get_bin(size);
+  
   // Best-fit: Find the best-fit free slot the object fits.
-  my_metadata_t* metadata = my_heap.free_head;
-  size_t min_diff = 4096;
-  int found_slots = 0;
-
-  my_metadata_t* min_metadata = NULL;
-  while (metadata) {
-    my_metadata_t* next = get_free_metadata(metadata)->next;
-    if (unmap_empty_page &&
-        metadata->size == my_heap.page_size - sizeof(my_metadata_t)) {
-      // Return an empty memory page to the system.
-      my_remove_from_free_list(metadata);
-      munmap_to_system(metadata, my_heap.page_size);
-    } else if (metadata->size >= size) {
+  size_t best_diff = 4096;
+  my_metadata_t* best_metadata = NULL;
+  my_metadata_t* best_metadata_prev = NULL;
+  my_metadata_t* current_metadata = my_heap[bin].free_head;
+  my_metadata_t* current_metadata_prev = NULL;
+  while (current_metadata) {
+    if (current_metadata->size >= size) {
       // Found a slot the object fits.
-      size_t diff = metadata->size - size;
-      if (diff <= min_diff) {
+      size_t diff = current_metadata->size - size;
+      if (diff <= best_diff) {
         // Try to find the best-fit slot.
-        min_diff = diff;
-        min_metadata = metadata;
-        // To avoid iterating the entire free list every time, we stop the
-        // iteration after finding a certain number of available slots.
-        if (++found_slots == 8)
-          break;
+        best_diff = diff;
+        best_metadata = current_metadata;
+        best_metadata_prev = current_metadata_prev;
       }
     }
-    metadata = next;
+    current_metadata_prev = current_metadata;
+    current_metadata = current_metadata->next;
   }
-  metadata = min_metadata;
+  my_metadata_t* prev = best_metadata_prev;
+  my_metadata_t* metadata = best_metadata;
   
   if (!metadata) {
-    // There was no free slot available. We need to request a new memory page
-    // from the system.
-    size_t buffer_size = my_heap.page_size;
+    // There was no free slot available. We need to request a new memory region
+    // from the system by calling mmap_from_system().
+    //
+    //     | metadata | free slot |
+    //     ^
+    //     metadata
+    //     <---------------------->
+    //            buffer_size
+    size_t buffer_size = 4096;
     my_metadata_t* metadata = (my_metadata_t*)mmap_from_system(buffer_size);
+    metadata->size = buffer_size - sizeof(my_metadata_t);
+    metadata->next = NULL;
     // Add the memory region to the free list.
-    my_add_to_free_list(metadata, buffer_size - sizeof(my_metadata_t));
+    my_add_to_free_list(metadata, bin);
     // Now, try my_malloc() again. This should succeed.
-    // Set |unmap_empty_page| to FALSE to avoid an infinite recursion.
-    return my_malloc_internal(size, FALSE);
+    return my_malloc(size);
   }
-
-  // Remove the free slot from the free list.
-  my_remove_from_free_list(metadata);
 
   // |ptr| is the beginning of the allocated object.
   //
-  //   | my_metadata_t | object | my_tail_metadata_t |
-  //   ^               ^        ^                    ^
-  //   metadata        ptr      tail_metadata        next_metadata
+  // ... | metadata | object | ...
+  //     ^          ^
+  //     metadata   ptr
   void* ptr = metadata + 1;
   size_t remaining_size = metadata->size - size;
-  metadata->freed = FALSE;
   metadata->size = size;
-  my_tail_metadata_t* tail_metadata =
-      get_prev_tail_metadata(get_next_metadata(metadata));
-  tail_metadata->metadata = metadata;
+  // Remove the free slot from the free list.
+  my_remove_from_free_list(metadata, prev, bin);
   
-  my_metadata_t* new_metadata = get_next_metadata(metadata);
-  if (remaining_size >= sizeof(my_metadata_t) +
-      sizeof(my_free_metadata_t) + sizeof(my_tail_metadata_t)) {
-    // Create a new metadata for the remaining free slot and add it to the
-    // free slot.
-    my_add_to_free_list(new_metadata, remaining_size - sizeof(my_metadata_t));
-  } else if (remaining_size) {
-    // If there is not sufficient memory region, create a dead slot.
-    ASSERT(remaining_size >= sizeof(my_metadata_t));
-    // Fill in 0's.
-    memset(new_metadata, 0, remaining_size);
+  if (remaining_size > sizeof(my_metadata_t)) {
+    // Create a new metadata for the remaining free slot.
+    //
+    // ... | metadata | object | metadata | free slot | ...
+    //     ^          ^        ^
+    //     metadata   ptr      new_metadata
+    //                 <------><---------------------->
+    //                   size       remaining size
+    my_metadata_t* new_metadata = (my_metadata_t*)((char*)ptr + size);
+    new_metadata->size = remaining_size - sizeof(my_metadata_t);
+    new_metadata->next = NULL;
+    // Add the remaining free slot to the free list.
+    my_add_to_free_list(new_metadata, bin);
   }
   return ptr;
 }
@@ -525,8 +364,14 @@ void* my_malloc_internal(size_t size, int unmap_empty_page) {
 // This is called every time an object is freed.  You are not allowed to use
 // any library functions other than mmap_from_system / munmap_to_system.
 void my_free(void* ptr) {
+  // Look up the metadata. The metadata is placed just prior to the object.
+  //
+  // ... | metadata | object | ...
+  //     ^          ^
+  //     metadata   ptr
   my_metadata_t* metadata = (my_metadata_t*)ptr - 1;
-  my_add_to_free_list(metadata, metadata->size);
+  // Add the free slot to the free list.
+  my_add_to_free_list(metadata, get_bin(metadata->size));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
