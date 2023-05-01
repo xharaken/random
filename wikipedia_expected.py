@@ -7,11 +7,13 @@ class Wikipedia:
     def __init__(self, pages_file, links_file):
 
         # A mapping from a page ID (integer) to the page title.
-        # For example, self.titles[1234] returns the title of the page whose ID is 1234.
+        # For example, self.titles[1234] returns the title of the page whose
+        # ID is 1234.
         self.titles = {}
 
         # A set of page links.
-        # For example, self.links[1234] returns an array of page IDs linked from the page whose ID is 1234.
+        # For example, self.links[1234] returns an array of page IDs linked
+        # from the page whose ID is 1234.
         self.links = {}
 
         # Read the pages file into self.titles.
@@ -36,7 +38,8 @@ class Wikipedia:
         print()
 
 
-    # Find the longest titles. This is not related to a graph algorithm at all though :)
+    # Find the longest titles. This is not related to a graph algorithm at all
+    # though :)
     def find_longest_titles(self):
         titles = sorted(self.titles.values(), key=len, reverse=True)
         print("The longest titles are:")
@@ -124,7 +127,8 @@ class Wikipedia:
             # The pageranks are updated with the following formula:
             #
             #   updated_pageranks(i) =
-            #       (1 - DAMPING_FACTOR) + DAMPING_FACTOR * \sum (pagerank(j) / outdegree(j)).
+            #       (1 - DAMPING_FACTOR) +
+            #       DAMPING_FACTOR * \sum (pagerank(j) / outdegree(j)).
             #
             # The summation is taken for all j's that have links to the page i.
             # outdegree(j) is the number of outgoing links from the page j.
@@ -138,16 +142,20 @@ class Wikipedia:
                     orphaned_pagerank += pageranks[src]
                 else:
                     for dst in self.links[src]:
-                        updated_pageranks[dst] += DAMPING_FACTOR * pageranks[src] / link_count
+                        updated_pageranks[dst] += (
+                            DAMPING_FACTOR * pageranks[src] / link_count)
 
-            # This is a subtle part to fix up the pageranks calculated in the above.
-            # The problem is that there are pages that don't have any outgoing links (let's call
-            # these pages "orphaned pages"). Since the above loop only distributes pageranks
-            # of pages that have outgoing links, the pageranks of the orphaned pages are lost.
-            # To fix the problem, we distribute the pageranks of the orphaned pages evenly to all pages.
+            # This is a subtle part to fix up the pageranks calculated in the
+            # above. The problem is that there are pages that don't have any
+            # outgoing links (let's call these pages "orphaned pages"). Since
+            # the above loop only distributes pageranks of pages that have
+            # outgoing links, the pageranks of the orphaned pages are lost.
+            # To fix the problem, we distribute the pageranks of the orphaned
+            # pages evenly to all pages.
             page_count = len(self.titles.keys())
             for id in self.titles.keys():
-                updated_pageranks[id] += DAMPING_FACTOR * orphaned_pagerank / page_count
+                updated_pageranks[id] += (
+                    DAMPING_FACTOR * orphaned_pagerank / page_count)
 
             # total = \sum updated_pageranks(i)
             # This total value should stay the same across iterations.
@@ -161,15 +169,18 @@ class Wikipedia:
                 norm += delta * delta
                 total += updated_pageranks[id]
                 pageranks[id] = updated_pageranks[id]
-            print("iteration %d: total = %d, norm = %.5lf" % (iteration, total, norm))
+            print("iteration %d: total = %d, norm = %.5lf" % (
+                iteration, total, norm))
             if norm < 0.01:
                 break
 
         # Print the pageranks of the most popular pages.
-        sorted_pageranks = sorted(pageranks.items(), key=lambda x:x[1], reverse=True)
+        sorted_pageranks = sorted(pageranks.items(),
+                                  key=lambda x:x[1], reverse=True)
         print("The most popular pages are:")
         for i in range(min(20, len(sorted_pageranks))):
-            print("%s (pagerank = %.2lf)" % (self.titles[sorted_pageranks[i][0]], sorted_pageranks[i][1]))
+            print("%s (pagerank = %.2lf)" % (
+                self.titles[sorted_pageranks[i][0]], sorted_pageranks[i][1]))
         print()
 
 

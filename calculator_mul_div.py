@@ -101,7 +101,8 @@ def test(line):
     if abs(actual_answer - expected_answer) < 1e-8:
         print("PASS! (%s = %f)" % (line, expected_answer))
     else:
-        print("FAIL! (%s should be %f but was %f)" % (line, expected_answer, actual_answer))
+        print("FAIL! (%s should be %f but was %f)" % (
+            line, expected_answer, actual_answer))
 
 
 # Add more tests to this function :)
