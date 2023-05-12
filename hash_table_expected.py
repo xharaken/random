@@ -18,7 +18,7 @@ def calculate_hash(key):
     hash = 0
     for i in key:
         # hash += ord(i)
-        hash = int(hash * 127 + ord(i))
+        hash = int(hash * 128 + ord(i))
     return hash
 
 
