@@ -76,7 +76,7 @@ def evaluate_brackets(tokens):
     index = 0
     bracket_left_index = 0
     while index < len(tokens):
-        # Find the right most ')'
+        # Find the leftmost ')'
         if tokens[index]['type'] == 'RIGHT':
             for i in reversed(range(0, index)):
                 # Find the corresponding '('
