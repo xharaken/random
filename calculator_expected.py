@@ -17,6 +17,15 @@ def read_number(line, index):
     return token, index
 
 
+def read_function(line, index):
+    for name in ["abs", "int", "round"]:
+        if line[index : index + len(name)] == name:
+            token = {'type': 'FUNCTION', 'name': name}
+            return token, index + len(name)
+    print('Unknown function found: ' + line[index])
+    exit(1)
+
+
 def read_plus(line, index):
     token = {'type': 'PLUS'}
     return token, index + 1
@@ -53,6 +62,8 @@ def tokenize(line):
     while index < len(line):
         if line[index].isdigit():
             (token, index) = read_number(line, index)
+        elif line[index].isalpha():
+            (token, index) = read_function(line, index)
         elif line[index] == '+':
             (token, index) = read_plus(line, index)
         elif line[index] == '-':
@@ -109,6 +120,23 @@ def evaluate_multiply_and_divide(tokens):
     return tokens
 
 
+def evaluate_functions(tokens):
+    index = 0
+    while index < len(tokens):
+        if tokens[index]['type'] == 'FUNCTION':
+            if tokens[index]['name'] == "abs":
+                num = abs(tokens[index + 1]['number'])
+            elif tokens[index]['name'] == "int":
+                num = int(tokens[index + 1]['number'])
+            elif tokens[index]['name'] == "round":
+                num = round(tokens[index + 1]['number'])
+            del tokens[index : index + 2]
+            tokens.insert(index, {'type': 'NUMBER', 'number': num})
+        else:
+            index += 1
+    return tokens
+
+
 def evaluate_plus_and_minus(tokens):
     answer = 0
     tokens.insert(0, {'type': 'PLUS'}) # Insert a dummy '+' token
@@ -128,6 +156,7 @@ def evaluate_plus_and_minus(tokens):
 
 def evaluate(tokens):
     tokens = evaluate_brackets(tokens)
+    tokens = evaluate_functions(tokens)
     tokens = evaluate_multiply_and_divide(tokens)
     return evaluate_plus_and_minus(tokens)
 
@@ -184,6 +213,23 @@ def run_test():
     test("1-(2-(3-(4-5)-6)-7)-8")
     test("(1+2)*3-4/(5-(6-7*8+9/(10-11)*12))")
     test("(1.1+2.2)*3.3-4.4/(5.5-(6.5-7.7*8.8+9.9/(10.0-11.1)*12.2))")
+
+    test("abs(2.1)")
+    test("abs(-2.1)")
+    test("abs(0)")
+    test("round(1)")
+    test("round(1.1)")
+    test("round(1.4999)")
+    test("round(1.5001)")
+    test("round(-1.5001)")
+    test("int(1)")
+    test("int(1.01)")
+    test("int(-1.01)")
+    test("abs(abs(-1.5))")
+    test("round(round(-1.5))")
+    test("int(int(-1.5))")
+    test("abs(int(round(-1)))")
+    test("round((1.1+2.2)*3.3)-int(4.4)/(abs(int(5.5-round(6.5-7.7*8.8+int(9.9/(10.0-11.1)*12.2)))))")
     print("==== Test finished! ====\n")
 
 run_test()
