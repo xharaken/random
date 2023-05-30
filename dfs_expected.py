@@ -12,31 +12,6 @@ links = {"A": ["B","E","G"],
          "G": ["F"]}
 
 
-# dfs_with_recursion finds A -> B -> C -> D -> E -> F first.
-def dfs_with_recursion(start, goal):
-    print("dfs_with_recursion:")
-    visited = {}
-    path = []
-
-    visited[start] = True
-    if recursion(start, goal, visited, path):
-        print(" -> ".join(path))
-        return
-    print("Not found")
-
-def recursion(node, goal, visited, path):
-    path.append(node)
-    if node == goal:
-        return True
-    for child in links[node]:
-        if not child in visited:
-            visited[child] = True
-            if recursion(child, goal, visited, path):
-                return True
-    path.pop()
-    return False
-
-
 # A helper function to find a path.
 def find_path(goal, previous):
     path = []
@@ -47,6 +22,33 @@ def find_path(goal, previous):
         path.append(node)
     path.reverse()
     return path
+
+
+# dfs_with_recursion finds A -> B -> C -> D -> E -> F first.
+def dfs_with_recursion(start, goal):
+    print("dfs_with_recursion:")
+    visited = {}
+    previous = {}
+
+    visited[start] = True
+    previous[start] = None
+    recursion(start, goal, visited, previous)
+
+    if goal in previous:
+        print(" -> ".join(find_path(goal, previous)))
+    else:
+        print("Not found")
+
+def recursion(node, goal, visited, previous):
+    if node == goal:
+        return True
+    for child in links[node]:
+        if not child in visited:
+            visited[child] = True
+            previous[child] = node
+            if recursion(child, goal, visited, previous):
+                return True
+    return False
 
 
 # dfs_with_stack finds A -> G -> F first.
