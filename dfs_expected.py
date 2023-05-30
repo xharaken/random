@@ -81,19 +81,18 @@ def dfs_with_stack_in_the_recursion_order(start, goal):
     previous = {}
 
     visited[start] = True
-    stack.append((start, -1))
+    stack.append((start, 0))
     previous[start] = None
     while len(stack):
         (node, index) = stack.pop()
         if node == goal:
             break
-        index += 1
         if index < len(links[node]):
-            stack.append((node, index))
+            stack.append((node, index + 1))
             child = links[node][index]
             if not child in visited:
                 visited[child] = True
-                stack.append((child, -1))
+                stack.append((child, 0))
                 previous[child] = node
 
     # Print the path from |start| to |goal|.
@@ -110,6 +109,6 @@ def dfs_with_stack_in_the_recursion_order(start, goal):
     print("Not found")
 
 
-dfs_with_stack("A", "F")
 dfs_with_recursion("A", "F")
+dfs_with_stack("A", "F")
 dfs_with_stack_in_the_recursion_order("A", "F")
