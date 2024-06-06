@@ -91,8 +91,6 @@ class Wikipedia:
 
         # BFS.
         queue = collections.deque([start_id])
-        visited = {}
-        visited[start_id] = True
         previous = {}
         previous[start_id] = None
         while queue:
@@ -101,19 +99,16 @@ class Wikipedia:
                 print("The shortest path from %s to %s is:" %
                       (start, goal))
                 routes = []
-                current = goal_id
                 while current:
-                    routes.append(current)
+                    routes.append(self.titles[current])
                     current = previous[current]
-                for id in reversed(routes):
-                    print(self.titles[id],
-                          end="\n" if id == goal_id else " -> ")
+                routes.reverse()
+                print(" -> ".join(routes))
                 print()
                 return
 
             for child in self.links[current]:
-                if not child in visited:
-                    visited[child] = True
+                if not child in previous:
                     previous[child] = current
                     queue.append(child)
         print("The path from %s to %s was not found." % (start, goal))
