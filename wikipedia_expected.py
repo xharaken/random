@@ -91,21 +91,30 @@ class Wikipedia:
 
         # BFS.
         queue = collections.deque([start_id])
-        routes = {start_id: [start_id]}
+        visited = {}
+        visited[start_id] = True
+        previous = {}
+        previous[start_id] = None
         while queue:
             current = queue.popleft()
-            for child in self.links[current]:
-                if not child in routes:
-                    if child == goal_id:
-                        print("The shortest path from %s to %s is:" %
-                              (start, goal))
-                        for id in routes[current]:
-                            print(self.titles[id], end=" -> ")
-                        print(goal)
-                        print()
-                        return
+            if current == goal_id:
+                print("The shortest path from %s to %s is:" %
+                      (start, goal))
+                routes = []
+                current = goal_id
+                while current:
+                    routes.append(current)
+                    current = previous[current]
+                for id in reversed(routes):
+                    print(self.titles[id],
+                          end="\n" if id == goal_id else " -> ")
+                print()
+                return
 
-                    routes[child] = routes[current] + [child]
+            for child in self.links[current]:
+                if not child in visited:
+                    visited[child] = True
+                    previous[child] = current
                     queue.append(child)
         print("The path from %s to %s was not found." % (start, goal))
 
