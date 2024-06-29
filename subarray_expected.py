@@ -1,4 +1,5 @@
 import math, random
+from collections import deque
 
 # Problem: L is an array of integers. K is an integer (1 <= K <= len(L)).
 # Find a subarray of L such that 1) the length of the subarray is equal to or
