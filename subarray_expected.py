@@ -43,23 +43,15 @@ def solve_n2(L, K):
 # O(N) algorithm
 def solve_n(L, K):
     N = len(L)
-
-    # Create a cumulative sum.
-    M = [0] * (N + 1)
-    M[0] = 0
-    for i in range(1, N + 1):
-        M[i] = M[i - 1] + L[i - 1]
-
-    max_sum = sum = M[K]
-    left = 0
-    for right in range(K, N):
-        sum += L[right]
-        new_left = right - K + 1
-        if M[new_left] < M[left]:
-            sum -= M[new_left] - M[left]
-            left = new_left
-        max_sum = max(max_sum, sum)
-    return max_sum
+    window = 0
+    for i in range(K):
+        window += L[i]
+    max_overall = max_ending_here = window
+    for i in range(K, N):
+        window += L[i] - L[i - K]
+        max_ending_here = max(window, max_ending_here + L[i])
+        max_overall = max(max_overall, max_ending_here)
+    return max_overall
 
 
 # For a given L and K, run the three algorithms (O(N^3), O(N^2) and O(N))
