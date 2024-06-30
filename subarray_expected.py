@@ -42,12 +42,11 @@ def solve_n2(L, K):
 
 # O(N) algorithm
 def solve_n(L, K):
-    N = len(L)
     window = 0
     for i in range(K):
         window += L[i]
     max_overall = max_ending_here = window
-    for i in range(K, N):
+    for i in range(K, len(L)):
         window += L[i] - L[i - K]
         max_ending_here = max(window, max_ending_here + L[i])
         max_overall = max(max_overall, max_ending_here)
