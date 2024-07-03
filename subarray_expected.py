@@ -42,14 +42,18 @@ def solve_n2(L, K):
 
 # O(N) algorithm
 def solve_n(L, K):
+    # window = sum(L[0, ..., K-1])
     window = 0
     for i in range(K):
         window += L[i]
-    max_overall = max_ending_here = window
+    max_overall = max_current = window
     for i in range(K, len(L)):
+        # window = sum(L[i-K+1, ..., i])
         window += L[i] - L[i - K]
-        max_ending_here = max(window, max_ending_here + L[i])
-        max_overall = max(max_overall, max_ending_here)
+        # max_current = max(sum(a subarray whose last index is i))
+        max_current = max(window, max_current + L[i])
+        # max_overall tracks the max value of max_current.
+        max_overall = max(max_overall, max_current)
     return max_overall
 
 
