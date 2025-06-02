@@ -60,7 +60,7 @@ def main(word_file, dataset_file):
             # Find a word that can be constructed as an anagram of the given
             # data.
             if compare_occurrence(data_occurrence, word_occurrences[index]):
-                print(words[index])
+                print(data, words[index])
                 break
 
 if __name__ == "__main__":
