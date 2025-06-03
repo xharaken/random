@@ -1,4 +1,4 @@
-import collections, random, sys
+import collections, random, sys, time
 
 class Wikipedia:
 
@@ -191,98 +191,10 @@ class Wikipedia:
 
 
     # Optional homework:
-    # Search a pair of the most distant pages with heuristics.
-    #
-    # This method uses a Double Sweep algorithm.
-    # See https://qiita.com/knewknowl/items/bb49242db38b99c82c06.
-    def search_most_distant_pages(self):
-        # Build a reverse graph.
-        reverse_links = self.build_reverse_links()
-
-        visited_goal_ids = {}
-        max_distance = 0
-        # Repeat until interrupted.
-        while True:
-            # Step 1: Choose a random page P.
-            random_id = random.choice(list(self.titles.keys()))
-
-            # Step 2: Find one of the most distant pages from P in the
-            # original graph. We call it a goal page.
-            (goal_id, _) = self.find_most_distant_page(random_id, self.links)
-
-            # Avoid searching the same goal page again.
-            if goal_id in visited_goal_ids:
-                continue
-            visited_goal_ids[goal_id] = True
-
-            # Step 3: Find one of the most distant pages from the goal page
-            # using the reverse graph. We call it a start page. For any page X,
-            # distance(X -> goal page) <= distance(start page -> goal page)
-            # holds in the original graph.
-            (start_id, distance) = self.find_most_distant_page(
-                goal_id, reverse_links)
-            print("random = %s, start = %s, goal = %s, distance = %d" % (
-                self.titles[random_id], self.titles[goal_id],
-                self.titles[start_id], distance))
-
-            # Update the max distance to distance(start page, goal page).
-            if max_distance < distance:
-                print("Distance: %d" % distance)
-                # Print a route from the start page to the goal page.
-                self.find_shortest_path(
-                    self.titles[start_id], self.titles[goal_id])
-                max_distance = distance
-
-
-    # Helper function:
-    # Bulid a graph with reverse links.
-    # self.links is a set of all page links of the original graph.
-    # If the original graph has a link from a page X to a page Y,
-    # the reverse graph has a link from a page Y to a page X.
-    # This method returns a set of all page links of the reverse graph.
-    def build_reverse_links(self):
-        reverse_links = {}
-        for id in self.titles.keys():
-            reverse_links[id] = []
-        for src in self.links.keys():
-            for dst in self.links[src]:
-                # If the original graph has a link from 'src' to 'dst',
-                # the reverse graph has a link from 'dst' to 'src'.
-                reverse_links[dst].append(src)
-        return reverse_links
-
-
-    # Helper function:
-    # Finds one of the most distant pages reachable from a starting page.
-    # 'start_id': An ID of the starting page.
-    # 'links': All page links.
-    #
-    # This method returns a tuple of (one of the most distant pages, the
-    # distance from the starting page).
-    def find_most_distant_page(self, start_id, links):
-        # BFS
-        current = start_id
-        distance = 0
-        queue = collections.deque([(current, distance)])
-        visited = {}
-        visited[current] = True
-        while queue:
-            (current, distance) = queue.popleft()
-            # To avoid returning the same most distant page every time,
-            # randomize the order to visit children.
-            randomized = random.sample(links[current], len(links[current]))
-            for child in randomized:
-                if not child in visited:
-                    visited[child] = True
-                    queue.append((child, distance + 1))
-        return (current, distance)
-
-
-    # Optional homework:
     # Search the longest path with heuristics.
     # 'start': The title of the start page.
     # 'goal': The title of the goal page.
-    def search_longest_path(self, start, goal):
+    def find_longest_path(self, start, goal):
         start_id = self.title_to_id(start)
         goal_id = self.title_to_id(goal)
         if start_id == -1:
@@ -321,30 +233,71 @@ class Wikipedia:
             current = start_id
             previous = {}
             previous[current] = None
+            visited = {}
+            visited[current] = True
             stack = collections.deque([current])
             while stack:
                 current = stack.pop()
+                # For DFS to find a longer path, it is important to set a
+                # visited flag when the node has been visited, not when the
+                # node is pushed to the stack. If a visited flag is set when
+                # the node X is pushed to the stack, DFS gives up searching a
+                # longer path to X when the node X is pushed to the stack.
+                #
+                # For example, imagine that A has links to B and C. When DFS
+                # visits A, it pushes B and C to the stack. DFS pops C from the
+                # stack and visits C. If a visited flag is set when the node is
+                # pushed to the stack, DFS will never find A -> C -> ... -> B
+                # because B's visited flag is already set. DFS only finds
+                # A -> B.
+                visited[current] = True
+
                 # The path from the start page to the goal page is found.
                 if current == goal_id:
-                    path = 0
-                    node = current
-                    while node:
-                        path += 1
-                        node = previous[node]
+                    routes = []
+                    while current:
+                        routes.append(self.titles[current])
+                        current = previous[current]
+                    routes.reverse()
+                    path = len(routes) - 1
                     print("Path found: %d" % path)
                     # Update the max path.
                     if max_path < path:
                         max_path = path
+                        # print(" -> ".join(routes), "\n")
                         print("Max path found: %d" % path)
                     break
 
                 # Twist the order to visit child nodes so that DFS visits
                 # child nodes that are more distant to the goal page first.
                 children = self.shuffle_nodes(self.links[current], distances)
+
                 for child in children:
-                    if not child in previous:
+                    # This condition should not be 'if not child in previous'.
+                    # For DFS to find a longer path, the visited flag needs to
+                    # be set when the node has been visited, not when the node
+                    # is pushed to the stack.
+                    if not child in visited:
                         previous[child] = current
                         stack.append(child)
+
+
+    # Helper function:
+    # Bulid a graph with reverse links.
+    # self.links is a set of all page links of the original graph.
+    # If the original graph has a link from a page X to a page Y,
+    # the reverse graph has a link from a page Y to a page X.
+    # This method returns a set of all page links of the reverse graph.
+    def build_reverse_links(self):
+        reverse_links = {}
+        for id in self.titles.keys():
+            reverse_links[id] = []
+        for src in self.links.keys():
+            for dst in self.links[src]:
+                # If the original graph has a link from 'src' to 'dst',
+                # the reverse graph has a link from 'dst' to 'src'.
+                reverse_links[dst].append(src)
+        return reverse_links
 
 
     # Helper function:
@@ -353,29 +306,29 @@ class Wikipedia:
     # 'distances': distances[X] stores distance(X -> goal page).
     #
     # This method sorts 'nodes' in the order of the distances to the goal page.
-    # nodes[0] is the most distant node to the goal page, and nodes[-1] is the
-    # least distant node to the goal page.
+    # nodes[0] is the least distant node to the goal page, and nodes[-1] is the
+    # most distant node to the goal page.
     # To add some randomness, swap a few items in the sorted nodes.
     def shuffle_nodes(self, nodes, distances):
         result = []
         for node in nodes:
+            # if 'node' is not in 'distances', there is no path from 'node'
+            # to the goal page.
             if node in distances:
                 result.append((node, distances[node]))
+
         # Sort the child nodes in the order of the distances to the goal page.
         result = sorted(result, key=lambda x:x[1])
 
-        # To add randomness, swap a few items.
-        for _ in range(len(result) // 40):
-            index1 = random.randint(0, len(result) - 1)
-            index2 = random.randint(0, len(result) - 1)
-            result[index1], result[index2] = result[index2], result[index1]
+        # To add randomness, swap a few items when there are many child nodes.
+        if len(result) >= 20:
+            for _ in range(len(result) // 20):
+                # Avoid swapping the first item because the first item may be
+                # the goal node. DFS should visit it last.
+                index1 = random.randint(1, len(result) - 1)
+                index2 = random.randint(1, len(result) - 1)
+                result[index1], result[index2] = result[index2], result[index1]
         return [item[0] for item in result]
-
-
-    # Optional homework:
-    # Do something more interesting!!
-    def do_something_more_interesting(self):
-        pass
 
 
 if __name__ == "__main__":
@@ -384,10 +337,13 @@ if __name__ == "__main__":
         exit(1)
 
     wikipedia = Wikipedia(sys.argv[1], sys.argv[2])
+    # Example
     wikipedia.find_longest_titles()
+    # Example
     wikipedia.find_most_linked_pages()
+    # Homework #1
     wikipedia.find_shortest_path("渋谷", "パレートの法則")
+    # Homework #2
     wikipedia.find_most_popular_pages()
-    wikipedia.search_most_distant_pages()
-    wikipedia.search_longest_path("渋谷", "池袋")
-    wikipedia.do_something_more_interesting()
+    # Optional homework
+    wikipedia.find_longest_path("渋谷", "池袋")
