@@ -61,7 +61,7 @@ class HashTable:
     #               and the value is updated.
     def put(self, key, value):
         assert type(key) == str
-        self.check_size() # Note: Don't remove this code.
+        check_size(self.size(), self.bucket_size) # Don't remove this code.
         bucket_index = calculate_hash(key) % self.bucket_size
         item = self.buckets[bucket_index]
         while item:
@@ -83,7 +83,7 @@ class HashTable:
     #               returned. Otherwise, (None, False) is returned.
     def get(self, key):
         assert type(key) == str
-        self.check_size() # Note: Don't remove this code.
+        check_size(self.size(), self.bucket_size) # Don't remove this code.
         bucket_index = calculate_hash(key) % self.bucket_size
         item = self.buckets[bucket_index]
         while item:
@@ -99,7 +99,7 @@ class HashTable:
     #               otherwise.
     def delete(self, key):
         assert type(key) == str
-        self.check_size() # Note: Don't remove this code.
+        check_size(self.size(), self.bucket_size) # Don't remove this code.
         bucket_index = calculate_hash(key) % self.bucket_size
         prev_item = None
         item = self.buckets[bucket_index]
@@ -148,14 +148,14 @@ class HashTable:
     def size(self):
         return self.item_count
 
-    # Check that the hash table has a "reasonable" bucket size.
-    # The bucket size is judged "reasonable" if it is smaller than 100 or
-    # the buckets are 30% or more used.
-    #
-    # Note: Don't change this function.
-    def check_size(self):
-        assert (self.bucket_size < 100 or
-                self.item_count >= self.bucket_size * 0.3)
+
+# Check that the hash table has a "reasonable" bucket size.
+# The bucket size is judged "reasonable" if it is smaller than 100 or
+# the buckets are 30% or more used.
+#
+# Note: Don't change this function.
+def check_size(item_count, bucket_size):
+    assert (bucket_size < 100 or item_count >= bucket_size * 0.3)
 
 
 # Test the functional behavior of the hash table.
@@ -221,6 +221,18 @@ def functional_test():
     assert hash_table.delete("acb") == True
     assert hash_table.delete("cab") == True
     assert hash_table.size() == 0
+
+    # Test the rehashing.
+    for i in range(100):
+        hash_table.put(str(i), str(i))
+    for i in range(100):
+        assert hash_table.get(str(i)) == (str(i), True)
+    for i in range(100):
+        assert hash_table.delete(str(i)) == True
+    hash_table.put("abc", 1)
+    hash_table.put("acb", 2)
+    assert hash_table.get("abc") == (1, True)
+    assert hash_table.get("acb") == (2, True)
     print("Functional tests passed!")
 
 
