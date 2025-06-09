@@ -201,6 +201,11 @@ class Wikipedia:
     # 'start': A title of the start page.
     # 'goal': A title of the goal page.
     def find_longest_path(self, start, goal):
+
+        dfs = self.dfs_with_heuristics
+        # This uses a more advanced DFS algorithm.
+        # dfs = self.dfs_with_advanced_heuristics
+
         start_id = self.title_to_id(start)
         goal_id = self.title_to_id(goal)
         if start_id == -1:
@@ -212,7 +217,7 @@ class Wikipedia:
 
         # Run DFS from the start page to the goal page and find an initial
         # path.
-        path = self.dfs_with_heuristics(start_id, goal_id, {})
+        path = dfs(start_id, goal_id, {})
         self.assert_path(path, start, goal)
         print("Initial path: %d" % (len(path) - 1))
 
@@ -221,41 +226,41 @@ class Wikipedia:
             # We try to extend the path incrementally with the following
             # algorithm.
             #
-            # 1. Randomly select one node in the current path. Imagine that
-            # an 'index'-th node in the path is selected.
+            # 1. Randomly select two nodes in the current path. Imagine that
+            # path[r1] and path[r2] are selected (where r1 < r2).
             #
             # The current path is:
             #   start == path[0] -> path[1] -> ... ->
-            #   path[index] -> path[index+1] -> ... -> path[-1] == goal
+            #   path[r1] -> ... -> path[r2] -> ... -> path[-1] == goal
             #
-            # 2. We set visited flags on all nodes in the path except
-            # path[index] and path[index+1], and run DFS from path[index] to
-            # path[index+1]. If we find a longer path from path[index] to
-            # path[index+1], replace path[index] -> path[index+1] with the
-            # found one.
+            # 2. Set visited flags of path[0], path[1], ..., path[r1-1] and
+            # path[r2+1], path[r2+2], ..., path[-1], and run DFS from
+            # path[r1] to path[r2]. If the DFS finds a longer path from
+            # path[r1] to path[r2], replace path[r1] -> ... -> path[r2] with
+            # the found one.
 
             assert(len(path) >= 2)
-            # Randomly select one node in the path.
-            index = random.randint(0, len(path) - 2)
+            # Randomly select two nodes in the path, excluding the goal page.
+            r1, r2 = random.sample(range(0, len(path) - 1), 2)
+            if r1 > r2:
+                r1, r2 = r2, r1
+            assert(r1 < r2)
 
-            # Before running DFS, we need to set visited flags on all nodes
-            # in the path except path[index] and path[index+1].
+            # Before running DFS, set visited flags on path[0], path[1], ...,
+            # path[r1-1] and path[r2+1], path[r2+2], ..., path[-1].
             visited = {}
             for i, node in enumerate(path):
-                if i != index and i != index + 1:
+                if i < r1 or r2 < i:
                     visited[node] = True
 
-            # Run DFS from path[index] to path[index+1].
-            new_path = self.dfs_with_heuristics(
-                path[index], path[index + 1], visited)
+            # Run DFS from path[r1] to path[r2].
+            new_path = dfs(path[r1], path[r2], visited)
 
-            if len(new_path) >= 3:
+            if len(new_path) >= r2 - r1 + 2:
                 # If a longer path is found, update the path.
-                path = (path[:index] + new_path + path[index + 2:])
+                path = (path[:r1] + new_path + path[r2+1:])
                 self.assert_path(path, start, goal)
                 print("Updated path: %d" % (len(path) - 1))
-            else:
-                print("No update")
 
 
     # Helper function for Homework #3:
