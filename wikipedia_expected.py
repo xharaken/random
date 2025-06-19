@@ -201,11 +201,94 @@ class Wikipedia:
     # 'start': A title of the start page.
     # 'goal': A title of the goal page.
     def find_longest_path(self, start, goal):
+        start_id = self.title_to_id(start)
+        goal_id = self.title_to_id(goal)
+        if start_id == -1:
+            print("The page %s was not found\n" % start)
+            return
+        if goal_id == -1:
+            print("The page %s was not found\n" % goal)
+            return
 
-        dfs = self.dfs_with_heuristics
-        # This uses a more advanced DFS algorithm.
-        # dfs = self.dfs_with_advanced_heuristics
+        path = []
+        # Repeat until interrupted.
+        while True:
+            # Run randomized DFS from the start node to the goal node.
+            new_path = self.randomized_dfs(start_id, goal_id)
+            if len(new_path) > len(path):
+                # If a longer path is found, update the path.
+                path = new_path
+                self.assert_path(path, start, goal)
+                print("Updated path: %d" % (len(path) - 1))
 
+
+    # Helper function for Homework #3:
+    # Please use this function to check if the found path is well formed.
+    # 'path': An array of page IDs that stores the found path.
+    #     path[0] is the start page. path[-1] is the goal page.
+    #     path[0] -> path[1] -> ... -> path[-1] is the path from the start
+    #     page to the goal page.
+    # 'start': A title of the start page.
+    # 'goal': A title of the goal page.
+    def assert_path(self, path, start, goal):
+        assert(start != goal)
+        assert(len(path) >= 2)
+        assert(self.titles[path[0]] == start)
+        assert(self.titles[path[-1]] == goal)
+        for i in range(len(path) - 1):
+            assert(path[i + 1] in self.links[path[i]])
+
+
+    # DFS with heuristics.
+    # 'start_id': An ID of the start page.
+    # 'goal_id': An ID of the goal page.
+    #
+    # This function returns a found path.
+    def randomized_dfs(self, start_id, goal_id):
+        current = start_id
+        previous = {}
+        previous[current] = None
+        stack = collections.deque([current])
+        visited = {}
+        while stack:
+            current = stack.pop()
+            # For DFS to find a longer path, it is important to set a visited
+            # flag when the node is popped from the stack, not when the node is
+            # pushed to the stack.
+            #
+            # For example, imagine that A has links to B and C. When DFS
+            # visits A, it pushes B and C to the stack. DFS pops C from the
+            # stack and visits C. If a visited flag is set when the node is
+            # pushed to the stack, DFS will never find A -> C -> ... -> B
+            # because B's visited flag is already set. DFS only finds A -> B.
+            visited[current] = True
+
+            if current == goal_id:
+                path = []
+                while current:
+                    path.append(current)
+                    current = previous[current]
+                path.reverse()
+                return path
+
+            # Randomize the order to visit child nodes. Otherwise, DFS always
+            # finds the same path and we cannot extend the initial path at all.
+            children = self.links[current].copy()
+            random.shuffle(children)
+
+            for child in children:
+                if not child in visited:
+                    # Do not set a visited flag here. See above comment.
+                    previous[child] = current
+                    stack.append(child)
+        return []
+
+
+    # Homework #3 (optional):
+    # Search the longest path with heuristics.
+    # 'start': A title of the start page.
+    # 'goal': A title of the goal page.
+    def find_longest_path_advanced(self, start, goal):
         start_id = self.title_to_id(start)
         goal_id = self.title_to_id(goal)
         if start_id == -1:
@@ -217,7 +300,7 @@ class Wikipedia:
 
         # Run DFS from the start page to the goal page and find an initial
         # path.
-        path = dfs(start_id, goal_id, {})
+        path = self.advanced_dfs(start_id, goal_id, {})
         self.assert_path(path, start, goal)
         print("Initial path: %d" % (len(path) - 1))
 
@@ -254,7 +337,7 @@ class Wikipedia:
                     visited[node] = True
 
             # Run DFS from path[r1] to path[r2].
-            new_path = dfs(path[r1], path[r2], visited)
+            new_path = self.advanced_dfs(path[r1], path[r2], visited)
 
             if len(new_path) >= r2 - r1 + 2:
                 # If a longer path is found, update the path.
@@ -263,75 +346,13 @@ class Wikipedia:
                 print("Updated path: %d" % (len(path) - 1))
 
 
-    # Helper function for Homework #3:
-    # Please use this function to check if the found path is well formed.
-    # 'path': An array of page IDs that stores the found path.
-    #     path[0] is the start page. path[-1] is the goal page.
-    #     path[0] -> path[1] -> ... -> path[-1] is the path from the start
-    #     page to the goal page.
-    # 'start': A title of the start page.
-    # 'goal': A title of the goal page.
-    def assert_path(self, path, start, goal):
-        assert(start != goal)
-        assert(len(path) >= 2)
-        assert(self.titles[path[0]] == start)
-        assert(self.titles[path[-1]] == goal)
-        for i in range(len(path) - 1):
-            assert(path[i + 1] in self.links[path[i]])
-
-
-    # DFS with heuristics.
-    # 'start_id': An ID of the start page.
-    # 'goal_id': An ID of the goal page.
-    # 'visited': Visited flags.
-    #
-    # This function returns a found path.
-    def dfs_with_heuristics(self, start_id, goal_id, visited):
-        current = start_id
-        previous = {}
-        previous[current] = None
-        stack = collections.deque([current])
-        while stack:
-            current = stack.pop()
-            # For DFS to find a longer path, it is important to set a visited
-            # flag when the node is popped from the stack, not when the node is
-            # pushed to the stack.
-            #
-            # For example, imagine that A has links to B and C. When DFS
-            # visits A, it pushes B and C to the stack. DFS pops C from the
-            # stack and visits C. If a visited flag is set when the node is
-            # pushed to the stack, DFS will never find A -> C -> ... -> B
-            # because B's visited flag is already set. DFS only finds A -> B.
-            visited[current] = True
-
-            if current == goal_id:
-                path = []
-                while current:
-                    path.append(current)
-                    current = previous[current]
-                path.reverse()
-                return path
-
-            # Randomize the order to visit child nodes. Otherwise, DFS always
-            # finds the same path and we cannot extend the initial path at all.
-            children = self.links[current].copy()
-            random.shuffle(children)
-
-            for child in children:
-                if not child in visited:
-                    # Do not set a visited flag here. See above comment.
-                    previous[child] = current
-                    stack.append(child)
-        return []
-
-
     # DFS with advanced heuristics. This finds a longer path more efficiently.
     # 'start_id': An ID of the start page.
     # 'goal_id': An ID of the goal page.
     # 'visited': Visited flags.
     #
     # This function returns a found path.
-    def dfs_with_advanced_heuristics(self, start_id, goal_id, visited):
+    def advanced_dfs(self, start_id, goal_id, visited):
         # Build a reverse graph.
         reverse_links = self.build_reverse_graph()
 
