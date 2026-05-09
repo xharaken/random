@@ -9,9 +9,11 @@ def read_words(file):
             words.append(line)
     return words
 
+
 # Sort the characters in a given string.
 def sort(string):
     return ''.join(sorted(list(string)))
+
 
 def main(word_file, string):
     sorted_string = sort(string)
@@ -24,6 +26,7 @@ def main(word_file, string):
     if not found:
         print("Not found")
 
+        
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         print("usage: %s word_file string" % sys.argv[0])
