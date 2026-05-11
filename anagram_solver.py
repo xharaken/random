@@ -74,14 +74,14 @@ def find_best_words(words, query):
 
     # See the comments below
     SEARCH_THRESHOLD = 6
-    PRUNING_THRESHOLD = 4
 
     # Recursive search
     # 'index': The current index in 'words'
     # 'score': The current score
     # 'answers': The set of words that achieve the score
-    # 'remaining_vector': The remaining characters we can use
-    def search(index, score, answers, remaining_vector):
+    # 'unused_vector': The occurrence vector of unused characters
+    # 'unused_characters': The number of unused characters
+    def search(index, score, answers, unused_vector, unused_characters):
         nonlocal words_vector
         nonlocal words_score
         nonlocal best_score
@@ -91,47 +91,63 @@ def find_best_words(words, query):
         if score > best_score:
             best_score = score
             best_answers = list(answers)
+            
+        # Finish searching when we found a complete anagram (i.e., the
+        # theoretical best score).
+        if unused_characters == 0:
+            return
 
         count = 0
         # Start a search from 'index', instead of 0, to avoid searching
         # the same set of words.
         for i in range(index, len(words)):
-            # If we find a word that can be constructed from 'remaining_vector'
-            if can_construct(words_vector[i], remaining_vector):
+            if unused_characters < len(words[i]):
+                continue
+            
+            # If we find a word that can be constructed from 'unused_vector'
+            if can_construct(words_vector[i], unused_vector):
                 count += 1
-                # Pruning #1:
-                # If the recursion depth hits PRUNING_THRESHOLD, we only search
-                # the first found word.
-                if (len(answers) >= PRUNING_THRESHOLD and count > 1):
-                    break
-                
-                # Pruning #2:
-                # Otherwise, we search the first SEARCH_THRESHOLD words that
-                # can be constructed from 'remaining_vector'
+                # Pruning: We search the first SEARCH_THRESHOLD words that can
+                # be constructed from 'unused_vector'
                 if count >= SEARCH_THRESHOLD:
                     break
 
-                # Remove the used characters from 'remaining_vector'
-                updated_vector = [
-                    remaining_vector[k] - words_vector[i][k] for k in range(26)]
+                # Remove the used characters from 'unused_vector'
+                new_unused_vector = [
+                    unused_vector[k] - words_vector[i][k] for k in range(26)]
                 answers.append(words[i])
+                
                 # Recursion
-                search(i + 1, score + words_score[i], answers, updated_vector)
+                search(i + 1, score + words_score[i], answers,
+                       new_unused_vector, unused_characters - len(words[i]))
                 answers.pop()
 
     # Start a recursive search
-    search(0, 0, [], get_vector(query))
+    search(0, 0, [], get_vector(query), len(query))
     return best_answers
     
-                
-def main(word_file, dataset_file):
+
+# Homework #2
+def find_best_word_main(word_file, dataset_file):
     words = read_words(word_file)
     # Sort the words in the reverse order of scores.
     words.sort(key=lambda word: get_score(word), reverse=True)
 
     queries = read_words(dataset_file)
     for query in queries:
-        # print(find_best_word(words, query))
+        print(find_best_word(words, query))
+
+
+# Homework #3
+def find_best_words_main(word_file, dataset_file):
+    words = read_words(word_file)
+    # Sort the words in the reverse order of word lengths.
+    # For Homework #3, this looks more effective than sorting by word scores
+    # because the search space narrows down faster by selecting longer words.
+    words.sort(key=lambda word: len(word), reverse=True)
+
+    queries = read_words(dataset_file)
+    for query in queries:
         print(" ".join(find_best_words(words, query)))
 
 
@@ -139,4 +155,5 @@ if __name__ == "__main__":
     if len(sys.argv) != 3:
         print("usage: %s word_file dataset_file" % sys.argv[0])
         exit(1)
-    main(sys.argv[1], sys.argv[2])
+    # find_best_word_main(sys.argv[1], sys.argv[2])
+    find_best_words_main(sys.argv[1], sys.argv[2])
