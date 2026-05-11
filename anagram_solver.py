@@ -48,7 +48,7 @@ def can_construct(word_vector, query_vector):
 
 # Find the best score word that can be constructed as an anagram of 'query'.
 # Example: if 'query' is "rlsneeesufmrsqyo" => "queensferry"
-def find_best_word(words, query):
+def find_best_word_for_query(words, query):
     query_vector = get_vector(query)
     for word in words:
         word_vector = get_vector(word)
@@ -61,7 +61,7 @@ def find_best_word(words, query):
 # Find the set of best score words that can be constructed as an anagram of
 # 'query'.
 # Example: if 'query' is "rlsneeesufmrsqyo" => ["queenly", "ferms", "ross"]
-def find_best_words(words, query):
+def find_best_words_for_query(words, query):
     # Pre-calculate the occurrence vectors for all words
     words_vector = [get_vector(word) for word in words]
     # Pre-calculate the scores for all words
@@ -101,6 +101,9 @@ def find_best_words(words, query):
         # Start a search from 'index', instead of 0, to avoid searching
         # the same set of words.
         for i in range(index, len(words)):
+            # Skip words longer than 'unused_characters'. This optimization
+            # works because we sorted words by word lengths (instead of word
+            # scores).
             if unused_characters < len(words[i]):
                 continue
             
@@ -128,32 +131,32 @@ def find_best_words(words, query):
     
 
 # Homework #2
-def find_best_word_main(word_file, dataset_file):
+def find_best_word(word_file, dataset_file):
     words = read_words(word_file)
     # Sort the words in the reverse order of scores.
     words.sort(key=lambda word: get_score(word), reverse=True)
 
     queries = read_words(dataset_file)
     for query in queries:
-        print(find_best_word(words, query))
+        print(find_best_word_for_query(words, query))
 
 
 # Homework #3
-def find_best_words_main(word_file, dataset_file):
+def find_best_words(word_file, dataset_file):
     words = read_words(word_file)
     # Sort the words in the reverse order of word lengths.
-    # For Homework #3, this looks more effective than sorting by word scores
+    # For Homework #3, this is more effective than sorting by word scores
     # because the search space narrows down faster by selecting longer words.
     words.sort(key=lambda word: len(word), reverse=True)
 
     queries = read_words(dataset_file)
     for query in queries:
-        print(" ".join(find_best_words(words, query)))
+        print(" ".join(find_best_words_for_query(words, query)))
 
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         print("usage: %s word_file dataset_file" % sys.argv[0])
         exit(1)
-    # find_best_word_main(sys.argv[1], sys.argv[2])
-    find_best_words_main(sys.argv[1], sys.argv[2])
+    # find_best_word(sys.argv[1], sys.argv[2])
+    find_best_words(sys.argv[1], sys.argv[2])
