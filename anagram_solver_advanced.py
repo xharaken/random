@@ -67,9 +67,7 @@ def find_best_words_advanced(word_file, dataset_file):
     # 'answers': The set of words that achieve the score
     # 'unused_bitmask': The bitmask of unused characters
     # 'unused_characters': The number of unused characters
-    # 'unused_score': The total score of unused characters
-    def search(index, score, answers,
-               unused_bitmask, unused_characters, unused_score):
+    def search(index, score, answers, unused_bitmask, unused_characters):
         nonlocal best_score, best_answers, memo, search_threshold
 
         # Update the best score
@@ -77,19 +75,18 @@ def find_best_words_advanced(word_file, dataset_file):
             best_score = score
             best_answers = list(answers)
             
-        # Finish searching when we found a complete anagram (i.e., the
-        # theoretical best score).
-        if unused_characters == 0:
-            return
-
-        # Finish searching if this search will not reach the best score.
-        if score + unused_score <= best_score:
+        # Finish searching when we found a complete anagram
+        if best_score == query_score:
             return
 
         # Memorization
-        if memo.get(unused_bitmask, -1) >= score:
+        memo_index, memo_score = memo.get(
+            unused_bitmask, (len(valid_words), -1))
+        if score <= memo_score and index >= memo_index:
             return
-        memo[unused_bitmask] = score
+        if score > memo_score or (
+                score == memo_score and index < memo_index):
+            memo[unused_bitmask] = (index, score)
         
         count = 0
         # Start a search from 'index', instead of 0, to avoid searching
@@ -117,8 +114,7 @@ def find_best_words_advanced(word_file, dataset_file):
                 
                 # Recursion
                 search(i + 1, score + word['score'], answers,
-                       new_unused_bitmask, unused_characters - word['length'],
-                       unused_score - word['score'])
+                       new_unused_bitmask, unused_characters - word['length'])
                 answers.pop()
 
 
@@ -130,6 +126,7 @@ def find_best_words_advanced(word_file, dataset_file):
 
     queries = read_words(dataset_file)
     for query in queries:
+        query_score = get_score(query)
         query_bitmask = get_bitmask(query)
         
         # Store the best score
@@ -151,22 +148,21 @@ def find_best_words_advanced(word_file, dataset_file):
                     'length': len(word)
                 })
 
-        # Iterative deepening
-        for iteration in range(1, 7):
-            search_threshold = 10 * iteration
-            
+        # Iterative search
+        for iteration in range(1, 4):
             # Memorization
             memo = {}
             
             # Start a recursive search
-            search(0, 0, [], get_bitmask(query), len(query), get_score(query))
+            search_threshold = iteration * 20
+            search(0, 0, [], get_bitmask(query), len(query))
 
             score = 0
             for answer in best_answers:
                 score += get_score(answer)
-            if score / get_score(query) > 0.95:
+            if score / query_score > 0.95:
                 break
-            
+        # print(score / query_score)
         print(" ".join(best_answers))
     
 
