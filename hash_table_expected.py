@@ -2,7 +2,7 @@ import random, sys, time
 
 ###########################################################################
 #                                                                         #
-# Implement a hash table from scratch! (⑅•ᴗ•⑅)                            #
+# Implement a hash table from scratch!                                    #
 #                                                                         #
 # Please do not use Python's dictionary or Python's collections library.  #
 # The goal is to implement the data structure yourself.                   #
@@ -18,7 +18,7 @@ def calculate_hash(key):
     hash = 0
     for i in key:
         # hash += ord(i)
-        hash = int(hash * 128 + ord(i))
+        hash = (hash * 31 + ord(i)) % 1000000007
     return hash
 
 
@@ -121,10 +121,12 @@ class HashTable:
     def rehash_if_needed(self):
         # Expand the buckets when the hash table is 70% or more used.
         if self.item_count >= self.bucket_size * 0.7:
-            # Make the new bucket size an odd number to reduce hash conflicts.
+            # Make the new bucket size an odd number to avoid even-number
+            # multiples and approximate a prime number to reduce hash conflicts.
             new_bucket_size = 2 * self.bucket_size + 1
         # Shrink the buckets when the hash table is 30% or less used.
-        elif self.item_count <= self.bucket_size * 0.3:
+        elif (self.item_count <= self.bucket_size * 0.3) and (
+                self.bucket_size >= 100):
             # Make the new bucket size an odd number to reduce hash conflicts.
             new_bucket_size = int(self.bucket_size / 2) + 1
         else:
@@ -135,10 +137,11 @@ class HashTable:
         for index in range(self.bucket_size):
             item = self.buckets[index]
             while item:
+                next_item = item.next
                 bucket_index = calculate_hash(item.key) % new_bucket_size
-                new_item = Item(item.key, item.value, new_buckets[bucket_index])
-                new_buckets[bucket_index] = new_item
-                item = item.next
+                item.next = new_buckets[bucket_index]
+                new_buckets[bucket_index] = item
+                item = next_item
 
         # Update the buckets to the new buckets.
         self.bucket_size = new_bucket_size
