@@ -1,87 +1,98 @@
-import sys
+import random, sys
 import hash_table_expected # Use the hash table you implemented in Homework #2
 
-# Implement a data structure that stores the most recently accessed N pages.
-# See the test cases to see how it should work.
-#
-# Note: Please do not use a library like collections.OrderedDict). The goal is
-#       to implement the data structure yourself!
+###########################################################################
+#                                                                         #
+# Implement a cache that stores the most recently accessed items from     #
+# scratch!                                                                #
+#                                                                         #
+# Please do not use Python's dictionary or Python's collections library.  #
+# The goal is to implement the data structure yourself.                   #
+#                                                                         #
+###########################################################################
 
-class Node:
+class Page:
     def __init__(self, url, contents):
         # URL
         self.url = url
         # The contents of the URL
         self.contents = contents
-        # Previous Node
+        # Previous page
         self.prev = None
-        # Next Node
+        # Next page
         self.next = None
 
         
 class Cache:
     # Initialize the cache.
-    # 'n': The size of the cache.
-    def __init__(self, n):
-        assert(n >= 1)
-        self.list_head = Node("", "")
-        self.list_tail = Node("", "")
+    # 'limit': The size limit of the cache.
+    def __init__(self, limit):
+        assert(limit >= 1)
+        self.limit = limit
+        self.hit_count = 0
+        self.miss_count = 0
+        self.list_head = Page("", "")
+        self.list_tail = Page("", "")
         self.list_head.next = self.list_tail
         self.list_tail.prev = self.list_head
-        self.n = n
-        self.url_to_node = hash_table_expected.HashTable()
+        self.url_to_page = hash_table_expected.HashTable()
 
     # Access a page and update the cache so that it stores the most recently
-    # accessed N pages. This needs to be done with mostly O(1).
+    # accessed pages up to the 'limit'. This needs to be done with mostly O(1).
     # 'url': The accessed URL
     # 'contents': The contents of the URL
     def access_page(self, url, contents):
-        (node, _) = self.url_to_node.get(url)
-        if node is not None: # Cache hit
-            assert(node.prev)
-            assert(node.next)
+        (page, _) = self.url_to_page.get(url)
+        if page is not None: # Cache hit
             # Update the contents.
-            node.contents = contents
-            node.prev.next = node.next
-            node.next.prev = node.prev
+            page.contents = contents
+            page.prev.next = page.next
+            page.next.prev = page.prev
+            self.hit_count += 1
         else: # Cache miss
-            if self.url_to_node.size() >= self.n:
-                # If the cache size reaches the limit, remove the oldest Node.
+            if self.url_to_page.size() >= self.limit:
+                # If the cache size reaches the limit, remove the oldest page.
                 tail = self.list_tail.prev
-                self.url_to_node.delete(tail.url)
+                self.url_to_page.delete(tail.url)
                 tail.prev.next = self.list_tail
                 self.list_tail.prev = tail.prev
 
-            # Cache the new Node
-            node = Node(url, contents)
-            self.url_to_node.put(url, node)
+            # Cache the new page
+            page = Page(url, contents)
+            self.url_to_page.put(url, page)
+            self.miss_count += 1
 
-        # Move the Node to the head because it's the newest.
-        node.next = self.list_head.next
-        node.prev = self.list_head
-        self.list_head.next.prev = node
-        self.list_head.next = node
+        # Move the page to the head because it's the newest.
+        page.next = self.list_head.next
+        page.prev = self.list_head
+        self.list_head.next.prev = page
+        self.list_head.next = page
 
     # Return the URLs stored in the cache. The URLs are ordered in the order
     # in which the URLs are mostly recently accessed.
     def get_pages(self):
-        node = self.list_head.next
+        page = self.list_head.next
         urls = []
-        while node.next: # Scan all nodes
+        while page.next: # Scan all pages
             # Consistency checks
-            assert(node.url != "")
-            assert(self.url_to_node.get(node.url) == (node, True))
-            assert(node.prev.next == node)
-            assert(node.next.prev == node)
+            assert(page.url != "")
+            assert(self.url_to_page.get(page.url) == (page, True))
+            assert(page.prev.next == page)
+            assert(page.next.prev == page)
             
-            urls.append(node.url)
-            node = node.next
+            urls.append(page.url)
+            page = page.next
             
-        assert(len(urls) == self.url_to_node.size())
+        assert(len(urls) == self.url_to_page.size())
         return urls
 
 
-def cache_test():
+    # Return the cache hit rate.
+    def get_hitrate(self):
+        return self.hit_count / (self.hit_count + self.miss_count)
+
+    
+def functional_test():
     # Set the size of the cache to 4.
     cache = Cache(4)
 
@@ -155,9 +166,29 @@ def cache_test():
     # The cache is updated to:
     #   (new)<-- "a.com", "e.com", "f.com", "c.com" -->(old)
     assert cache.get_pages() == ["a.com", "e.com", "f.com", "c.com"]
+    print("Functional tests passed!")
 
-    print("Tests passed!")
 
+def performance_test():
+    # Set the size of the cache to 100.
+    cache = Cache(100)
+
+    # Generate queries based on the Zipf law.
+    ALPHA = 1.5
+    NUM_QUERIES = 1000000
+    NUM_PAGES = 1000
+    ranks = range(1, NUM_PAGES + 1)
+    weights = [1.0 / (r ** ALPHA) for r in ranks]
+    random.seed(1)
+    queries = random.choices(ranks, weights=weights, k=NUM_QUERIES)    
+    for query in queries:
+        cache.access_page(str(query), "")
+
+    print("Cache hit rate = %d %%" % (cache.get_hitrate() * 100))
+    print("Performance tests passed!")
+    
 
 if __name__ == "__main__":
-    cache_test()
+    functional_test()
+    performance_test()
+
