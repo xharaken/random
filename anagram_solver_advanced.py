@@ -81,9 +81,7 @@ def find_best_words_advanced(word_file, dataset_file):
         for i in range(index, len(valid_words)):
             word = valid_words[i]
             
-            # Skip words longer than 'unused_characters'. This optimization
-            # works because we sorted words by word lengths (instead of
-            # word scores).
+            # Skip words longer than 'unused_characters'.
             if unused_characters < word['length']:
                 continue
             
