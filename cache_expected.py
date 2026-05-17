@@ -144,14 +144,14 @@ def functional_test():
 
     # Access "e.com".
     cache.access_page("e.com", "EEE")
-    # The cache is full, so we need to remove the least recently accessed page "b.com".
+    # The cache is full, so we remove the least recently accessed page "b.com".
     # The cache is updated to:
     #   (new)<-- "e.com", "a.com", "c.com", "d.com" -->(old)
     assert cache.get_pages() == ["e.com", "a.com", "c.com", "d.com"]
 
     # Access "f.com".
     cache.access_page("f.com", "FFF")
-    # The cache is full, so we need to remove the least recently accessed page "c.com".
+    # The cache is full, so we remove the least recently accessed page "c.com".
     # The cache is updated to:
     #   (new)<-- "f.com", "e.com", "a.com", "c.com" -->(old)
     assert cache.get_pages() == ["f.com", "e.com", "a.com", "c.com"]
