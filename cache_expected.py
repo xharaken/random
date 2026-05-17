@@ -184,6 +184,7 @@ def performance_test():
     for query in queries:
         cache.access_page(str(query), "")
 
+    # If your cache implementation is correct, the hit rate will be 91%.
     print("Cache hit rate = %d %%" % (cache.get_hitrate() * 100))
     print("Performance tests passed!")
     
