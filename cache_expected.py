@@ -29,8 +29,8 @@ class Cache:
     def __init__(self, limit):
         assert(limit >= 1)
         self.limit = limit
-        self.hit_count = 0
-        self.miss_count = 0
+        self.hit_count = 0 # Increment on a cache hit
+        self.miss_count = 0 # Increment on a cache miss
         self.list_head = Page("", "")
         self.list_tail = Page("", "")
         self.list_head.next = self.list_tail
@@ -89,7 +89,8 @@ class Cache:
 
     # Return the cache hit rate.
     def get_hitrate(self):
-        return self.hit_count / (self.hit_count + self.miss_count)
+        total = self.hit_count + self.miss_count
+        return self.hit_count / total if total > 0 else 0
 
     
 def functional_test():
