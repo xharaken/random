@@ -148,7 +148,7 @@ def find_best_words_advanced(word_file, dataset_file):
                     'length': len(word)
                 })
 
-        # Iterative search
+        # Iterative deepening
         for iteration in range(1, 4):
             # Memorization
             memo = {}

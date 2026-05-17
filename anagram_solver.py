@@ -83,8 +83,7 @@ def find_best_words(word_file, dataset_file):
     # 'score': The current score
     # 'answers': The set of words that achieve the score
     # 'unused_vector': The occurrence vector of unused characters
-    # 'unused_characters': The number of unused characters
-    def search(index, score, answers, unused_vector, unused_characters):
+    def search(index, score, answers, unused_vector):
         nonlocal best_score, best_answers
 
         # Update the best score
@@ -95,15 +94,11 @@ def find_best_words(word_file, dataset_file):
         count = 0
         # Start a search from 'index', instead of 0, to avoid searching
         # the same set of words.
-        for i in range(index, len(words)):
-            # Skip words longer than 'unused_characters'. This optimization
-            # works because we sorted words by word lengths (instead of
-            # word scores).
-            if unused_characters < len(words[i]):
-                continue
+        for i in range(index, len(valid_words)):
+            word = valid_words[i]
             
             # If we find a word that can be constructed from 'unused_vector'
-            if can_construct(word_vectors[i], unused_vector):
+            if can_construct(word["vector"], unused_vector):
                 count += 1
                 # Pruning: We search the first SEARCH_THRESHOLD words that
                 # can be constructed from 'unused_vector'
@@ -112,35 +107,42 @@ def find_best_words(word_file, dataset_file):
 
                 # Remove the used characters from 'unused_vector'
                 new_unused_vector = [
-                    unused_vector[k] - word_vectors[i][k] for k in range(26)]
-                answers.append(words[i])
+                    unused_vector[k] - word["vector"][k] for k in range(26)]
+                answers.append(word["word"])
                 
                 # Recursion
-                search(i + 1, score + word_scores[i], answers,
-                       new_unused_vector, unused_characters - len(words[i]))
+                search(i + 1, score + word["score"], answers, new_unused_vector)
                 answers.pop()
 
                 
     words = read_words(word_file)
-    # Sort the words in the reverse order of word lengths.
-    # For Homework #3, this is more effective than sorting by word scores
-    # because the search space narrows down faster by selecting longer words.
-    words.sort(key=lambda word: len(word), reverse=True)
+    # Sort the words in the reverse order of word scores.
+    words.sort(key=lambda word: get_score(word), reverse=True)
     
-    # Pre-calculate the occurrence vectors for all words
-    word_vectors = [get_vector(word) for word in words]
-    # Pre-calculate the scores for all words
-    word_scores = [get_score(word) for word in words]
-
     queries = read_words(dataset_file)
     for query in queries:
+        query_vector = get_vector(query)
+        
+        # Pre-calculate a list of words that can be constructed from the query.
+        # This allows us to skip searching words that cannot be constructed
+        # from the query.
+        valid_words = []
+        for word in words:
+            word_vector = get_vector(word)
+            if can_construct(word_vector, query_vector):
+                valid_words.append({
+                    'word': word,
+                    'vector': word_vector,
+                    'score': get_score(word)
+                })
+
         # Store the best score
         best_score = 0
         # Store the set of words that achieve the best score
         best_answers = []
 
         # Start a recursive search
-        search(0, 0, [], get_vector(query), len(query))
+        search(0, 0, [], query_vector)
         print(" ".join(best_answers))
 
 
@@ -148,5 +150,5 @@ if __name__ == "__main__":
     if len(sys.argv) != 3:
         print("usage: %s word_file dataset_file" % sys.argv[0])
         exit(1)
-    find_best_word(sys.argv[1], sys.argv[2])
-    # find_best_words(sys.argv[1], sys.argv[2])
+    # find_best_word(sys.argv[1], sys.argv[2])
+    find_best_words(sys.argv[1], sys.argv[2])
