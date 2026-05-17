@@ -37,26 +37,13 @@ def read_words(file):
     return words
 
 
-# SWAR (SIMD Within A Register)
-BITS_PER_CHAR = 7
-SIGN_MASK = sum(1 << (i * BITS_PER_CHAR + 5) for i in range(26))
-
-# Calculate a bitmask for a given word.
-def get_bitmask(word):
-    bitmask = 0
-    vector = [0] * 26
-    for character in word:
-        index = ord(character) - ord('a')
-        shift = index * BITS_PER_CHAR
-        bitmask += (1 << shift)
-        vector[index] += 1
-        assert(vector[index] < (1 << (BITS_PER_CHAR - 1)))
-    return bitmask
-
-
-# Return true if the word can be constructed from the query.
-def can_construct_bitmask(word_bitmask, query_bitmask):
-    return ((query_bitmask - word_bitmask) & SIGN_MASK) == 0
+# Return true if 'word_vector' can be constructed as an anagram of
+# 'query_vector'.
+def can_construct(word_vector, query_vector):
+    for i in range(26):
+        if query_vector[i] < word_vector[i]:
+            return False
+    return True
 
 
 # Homework #3 (advanced)
@@ -65,9 +52,9 @@ def find_best_words_advanced(word_file, dataset_file):
     # 'index': The current index in 'words'
     # 'score': The current score
     # 'answers': The set of words that achieve the score
-    # 'unused_bitmask': The bitmask of unused characters
+    # 'unused_vector': The vector of unused characters
     # 'unused_characters': The number of unused characters
-    def search(index, score, answers, unused_bitmask, unused_characters):
+    def search(index, score, answers, unused_vector, unused_characters):
         nonlocal best_score, best_answers, memo, search_threshold
 
         # Update the best score
@@ -81,12 +68,12 @@ def find_best_words_advanced(word_file, dataset_file):
 
         # Memorization
         memo_index, memo_score = memo.get(
-            unused_bitmask, (len(valid_words), -1))
+            tuple(unused_vector), (len(valid_words), -1))
         if score <= memo_score and index >= memo_index:
             return
         if score > memo_score or (
                 score == memo_score and index < memo_index):
-            memo[unused_bitmask] = (index, score)
+            memo[tuple(unused_vector)] = (index, score)
         
         count = 0
         # Start a search from 'index', instead of 0, to avoid searching
@@ -100,21 +87,22 @@ def find_best_words_advanced(word_file, dataset_file):
             if unused_characters < word['length']:
                 continue
             
-            # If we find a word that can be constructed from 'unused_bitmask'
-            if can_construct_bitmask(word['bitmask'], unused_bitmask):
+            # If we find a word that can be constructed from 'unused_vector'
+            if can_construct(word['vector'], unused_vector):
                 count += 1
                 # Pruning: We search the first 'search_threshold' words that
-                # can be constructed from 'unused_bitmask'
+                # can be constructed from 'unused_vector'
                 if count >= search_threshold:
                     break
 
-                # Remove the used characters from 'unused_bitmask'
-                new_unused_bitmask = unused_bitmask - word['bitmask']
+                # Remove the used characters from 'unused_vector'
+                new_unused_vector = [
+                    unused_vector[k] - word["vector"][k] for k in range(26)]
                 answers.append(word['word'])
                 
                 # Recursion
                 search(i + 1, score + word['score'], answers,
-                       new_unused_bitmask, unused_characters - word['length'])
+                       new_unused_vector, unused_characters - word['length'])
                 answers.pop()
 
 
@@ -127,7 +115,7 @@ def find_best_words_advanced(word_file, dataset_file):
     queries = read_words(dataset_file)
     for query in queries:
         query_score = get_score(query)
-        query_bitmask = get_bitmask(query)
+        query_vector = get_vector(query)
         
         # Store the best score
         best_score = 0
@@ -139,11 +127,11 @@ def find_best_words_advanced(word_file, dataset_file):
         # from the query.
         valid_words = []
         for word in words:
-            word_bitmask = get_bitmask(word)
-            if can_construct_bitmask(word_bitmask, query_bitmask):
+            word_vector = get_vector(word)
+            if can_construct(word_vector, query_vector):
                 valid_words.append({
                     'word': word,
-                    'bitmask': word_bitmask,
+                    'vector': word_vector,
                     'score': get_score(word),
                     'length': len(word)
                 })
@@ -155,7 +143,7 @@ def find_best_words_advanced(word_file, dataset_file):
             
             # Start a recursive search
             search_threshold = iteration * 20
-            search(0, 0, [], get_bitmask(query), len(query))
+            search(0, 0, [], query_vector, len(query))
 
             score = 0
             for answer in best_answers:
