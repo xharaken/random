@@ -210,7 +210,7 @@ void find_best_words_advanced(const std::string& word_file, const std::string& d
             for (const auto& answer : best_answers) {
                 iteration_score += get_score(answer);
             }
-            if (static_cast<double>(iteration_score) / query_score > 0.99) {
+            if (static_cast<double>(iteration_score) / query_score > 0.95) {
                 break;
             }
         }

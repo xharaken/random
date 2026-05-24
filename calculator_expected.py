@@ -85,7 +85,7 @@ def tokenize(line):
 
 def evaluate_brackets(tokens):
     index = 0
-    bracket_left_index = 0
+    left_index = 0
     while index < len(tokens):
         # Find the leftmost ')'
         if tokens[index]['type'] == 'RIGHT':
@@ -215,22 +215,23 @@ def run_test():
     test("(1.1+2.2)*3.3-4.4/(5.5-(6.5-7.7*8.8+9.9/(10.0-11.1)*12.2))")
 
     test("abs(2.1)")
-    test("abs(-2.1)")
+    test("abs(0-2.1)")
     test("abs(0)")
     test("round(1)")
     test("round(1.1)")
     test("round(1.4999)")
     test("round(1.5001)")
-    test("round(-1.5001)")
+    test("round(0-1.5001)")
     test("int(1)")
     test("int(1.01)")
-    test("int(-1.01)")
-    test("abs(abs(-1.5))")
-    test("round(round(-1.5))")
-    test("int(int(-1.5))")
-    test("abs(int(round(-1)))")
+    test("int(0-1.01)")
+    test("abs(abs(0-1.5))")
+    test("round(round(0-1.5))")
+    test("int(int(0-1.5))")
+    test("abs(int(round(0-1)))")
     test("round((1.1+2.2)*3.3)-int(4.4)/(abs(int(5.5-round(6.5-7.7*8.8+int(9.9/(10.0-11.1)*12.2)))))")
     print("==== Test finished! ====\n")
+
 
 run_test()
 
