@@ -308,10 +308,9 @@ class Wikipedia:
         self.assert_path(path, start, goal)
         print("Initial path: %d" % (len(path) - 1))
 
-        # Repeat until interrupted.
+        # Repeat until interrupt.
         while True:
-            # We try to extend the path incrementally with the following
-            # algorithm.
+            # We extend the path incrementally with the following algorithm.
             #
             # 1. Randomly select two nodes in the current path. Imagine that
             # path[r1] and path[r2] are selected (where r1 < r2).
@@ -360,9 +359,9 @@ class Wikipedia:
         # Build a reverse graph.
         reverse_links = self.build_reverse_graph()
 
-        # Calculate distance(X -> goal page) on the original graph for all
-        # node X's and store it to distances[X]. We can do this by running
-        # BFS from the goal page to all nodes using the reverse graph.
+        # Calculate distance(X -> goal page) on the original graph and store
+        # it to distances[X]. We can do this by running BFS from the goal
+        # page using the reverse graph.
         current = goal_id
         distances = {}
         distances[current] = 0
@@ -370,15 +369,11 @@ class Wikipedia:
         while queue:
             (current, distance) = queue.popleft()
             for child in self.reverse_links[current]:
-                if not child in distances:
+                if (not child in visited) and (not child in distances):
                     distances[child] = distance + 1
                     queue.append((child, distances[child]))
 
-        # Run DFS from the start page. To find a longer path to the goal
-        # page, twist the order to visit child nodes. Instead of visiting
-        # the child nodes in the order stored in self.links, visit child
-        # nodes that are more distant to the goal page first. By doing this,
-        # DFS is more likely to find a longer path to the goal page.
+        # Run DFS from the start page.
         current = start_id
         previous = {}
         previous[current] = None
@@ -398,18 +393,13 @@ class Wikipedia:
                 path.reverse()
                 return path
 
+            # If 'node' is not included in 'distances', there is no path
+            # from the 'node' to the goal page. We do not need to visit
+            # the 'node'.
+            children = [
+                node for node in self.links[current] if node in distances]
             # Twist the order to visit child nodes so that DFS visits child
-            # nodes that are more distant to the goal page first. For this
-            # purpose, we sort the child nodes in the order of the distances
-            # to the goal page.
-            children = []
-            for node in self.links[current]:
-                # If 'node' is not included in 'distances', there is no path
-                # from the 'node' to the goal page. We do not need to visit
-                # the 'node'.
-                if node in distances:
-                    children.append(node)
-            # Sort the child nodes by distances to the goal page.
+            # nodes that are more distant to the goal page first.
             children = sorted(children, key=lambda x:distances[x])
 
             for child in children:
@@ -443,12 +433,12 @@ if __name__ == "__main__":
 
     wikipedia = Wikipedia(sys.argv[1], sys.argv[2])
     # Example
-    wikipedia.find_longest_titles()
+    # wikipedia.find_longest_titles()
     # Example
-    wikipedia.find_most_linked_pages()
+    # wikipedia.find_most_linked_pages()
     # Homework #1
-    wikipedia.find_shortest_path("渋谷", "パレートの法則")
+    # wikipedia.find_shortest_path("渋谷", "パレートの法則")
     # Homework #2
-    wikipedia.find_most_popular_pages()
+    # wikipedia.find_most_popular_pages()
     # Homework #3 (optional)
-    wikipedia.find_longest_path("渋谷", "池袋")
+    wikipedia.find_longest_path_advanced("渋谷", "池袋")
