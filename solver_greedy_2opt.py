@@ -29,7 +29,7 @@ def solve(cities):
         for j in range(i, N):
             dist[i][j] = dist[j][i] = distance(cities[i], cities[j])
 
-    # Create an initial path using greedy search
+    # Create an initial tour using greedy search
     current_city = 0
     unvisited_cities = set(range(1, N))
     tour = [current_city]
